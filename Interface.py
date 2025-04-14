@@ -16,7 +16,7 @@ class Interface(object):
 			self.connector()
 		command = None
 		while command != "/exit":
-			command = input("Please type your message, or enter a command, '/connect', '/approve', '/name', '/addPort', '/exit' then hit enter:  \n")
+			command = input("Please type your message, or enter a command, '/connect', '/approve', '/name', '/addPort', '/exit', '/sendCode' , '/receiveCode' then hit enter:  \n")
 			if command == "/connect":
 				self.connector()
 			elif command == "/approve":
