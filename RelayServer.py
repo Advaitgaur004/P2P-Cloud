@@ -5,7 +5,6 @@ import time
 import uuid
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('relay_server')
 
@@ -16,14 +15,10 @@ class RelayServer:
         self.peers = {}  # Dictionary to store registered peers {peer_id: {ip, port, last_active}}
         self.connections = {}  # Active connections {peer_id: connection}
         self.running = True
-        
-        # Setup server socket
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(10)
-        
-        # Start maintenance thread
         self.cleanup_thread = threading.Thread(target=self._cleanup_inactive_peers)
         self.cleanup_thread.daemon = True
         self.cleanup_thread.start()
@@ -56,7 +51,7 @@ class RelayServer:
         peer_id = None
         try:
             logger.info(f"New connection from {address}")
-            client_socket.settimeout(60)  # 60 second timeout
+            client_socket.settimeout(60)
             
             while self.running:
                 try:
@@ -68,7 +63,6 @@ class RelayServer:
                     command = message.get('command')
                     
                     if command == 'register':
-                        # Register a new peer
                         peer_id = str(uuid.uuid4())
                         self.peers[peer_id] = {
                             'ip': message.get('ip'),
@@ -85,7 +79,6 @@ class RelayServer:
                         logger.info(f"Registered peer {peer_id} at {message.get('ip')}:{message.get('port')}")
                     
                     elif command == 'heartbeat':
-                        # Update last active time for peer
                         peer_id = message.get('peer_id')
                         if peer_id in self.peers:
                             self.peers[peer_id]['last_active'] = time.time()
@@ -95,12 +88,10 @@ class RelayServer:
                         client_socket.sendall(json.dumps(response).encode('utf-8'))
                     
                     elif command == 'get_peers':
-                        # Return list of active peers
                         peer_id = message.get('peer_id')
                         if peer_id in self.peers:
                             self.peers[peer_id]['last_active'] = time.time()
                             
-                            # Filter out requesting peer and format for response
                             peer_list = []
                             for pid, info in self.peers.items():
                                 if pid != peer_id:
@@ -119,7 +110,6 @@ class RelayServer:
                         client_socket.sendall(json.dumps(response).encode('utf-8'))
                     
                     elif command == 'relay_message':
-                        # Relay a message to another peer
                         sender_id = message.get('peer_id')
                         target_id = message.get('target_id')
                         content = message.get('content')
@@ -142,7 +132,6 @@ class RelayServer:
                         client_socket.sendall(json.dumps(response).encode('utf-8'))
                     
                     elif command == 'disconnect':
-                        # Peer is disconnecting
                         peer_id = message.get('peer_id')
                         if peer_id in self.peers:
                             logger.info(f"Peer {peer_id} disconnecting")
@@ -150,12 +139,10 @@ class RelayServer:
                         break
                     
                     else:
-                        # Unknown command
                         response = {'status': 'error', 'message': 'Unknown command'}
                         client_socket.sendall(json.dumps(response).encode('utf-8'))
                 
                 except socket.timeout:
-                    # Check if peer is still registered
                     if peer_id and peer_id in self.peers:
                         if time.time() - self.peers[peer_id]['last_active'] > 60:
                             break
@@ -190,30 +177,24 @@ class RelayServer:
             del self.connections[peer_id]
     
     def _cleanup_inactive_peers(self):
-        """Remove peers that haven't sent a heartbeat recently"""
         while self.running:
             current_time = time.time()
             to_remove = []
             
             for peer_id, info in self.peers.items():
-                if current_time - info['last_active'] > 120:  # 2 minutes timeout
+                if current_time - info['last_active'] > 120:
                     to_remove.append(peer_id)
             
             for peer_id in to_remove:
                 logger.info(f"Removing inactive peer {peer_id}")
                 self._remove_peer(peer_id)
                 
-            time.sleep(30)  # Check every 30 seconds
+            time.sleep(30)
     
     def shutdown(self):
-        """Shutdown the relay server"""
         self.running = False
-        
-        # Close all client connections
         for peer_id in list(self.connections.keys()):
             self._remove_peer(peer_id)
-        
-        # Close server socket
         try:
             self.server_socket.close()
         except:
@@ -222,6 +203,5 @@ class RelayServer:
         logger.info("Relay server shut down")
 
 if __name__ == "__main__":
-    # Change port if needed
     server = RelayServer(port=12345)
     server.start()
